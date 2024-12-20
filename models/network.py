@@ -20,70 +20,92 @@ class CIFAR10Net(nn.Module):
     def __init__(self):
         super().__init__()
         
-        # Input size: 32x32x3
+        # Input size: 32x32x3, RF start: 1x1, jin=1
         
         # C1 Block - Regular Conv
         self.conv1 = nn.Sequential(
-            # RF: 3x3, jin=1, rin=1, start=1
-            nn.Conv2d(3, 12, kernel_size=3, padding=1),
+            # RF: 3x3, jin=1, rin=1, jout=1
+            nn.Conv2d(3, 12, kernel_size=3, padding=1),    # 32x32x3 -> 32x32x12
             nn.BatchNorm2d(12),
             nn.ReLU(),
             
-            # RF: 5x5, jin=1, rin=1
-            nn.Conv2d(12, 16, kernel_size=3, padding=1),
+            # RF: 5x5, jin=1, rin=1, jout=1
+            nn.Conv2d(12, 16, kernel_size=3, padding=1),   # 32x32x12 -> 32x32x16
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+        
+        # Strided conv after C1
+        self.stride1 = nn.Sequential(
+            # RF: 7x7, jin=1, rin=1, jout=2 (stride=2)
+            nn.Conv2d(16, 16, kernel_size=3, stride=2, padding=1),  # 32x32x16 -> 16x16x16
             nn.BatchNorm2d(16),
             nn.ReLU()
         )
         
         # C2 Block - Depthwise Separable Conv
         self.conv2 = nn.Sequential(
-            # RF: 7x7, jin=1, rin=1
-            DepthwiseSeparableConv(16, 24, kernel_size=3),
+            # RF: 11x11, jin=2, rin=2, jout=2
+            DepthwiseSeparableConv(16, 24, kernel_size=3),  # 16x16x16 -> 16x16x24
             nn.BatchNorm2d(24),
             nn.ReLU(),
             
-            # RF: 9x9, jin=1, rin=1
-            nn.Conv2d(24, 32, kernel_size=3, padding=1),
+            # RF: 15x15, jin=2, rin=2, jout=2
+            nn.Conv2d(24, 32, kernel_size=3, padding=1),    # 16x16x24 -> 16x16x32
+            nn.BatchNorm2d(32),
+            nn.ReLU()
+        )
+        
+        # Strided conv after C2
+        self.stride2 = nn.Sequential(
+            # RF: 19x19, jin=2, rin=2, jout=4 (stride=2)
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 16x16x32 -> 8x8x32
             nn.BatchNorm2d(32),
             nn.ReLU()
         )
         
         # C3 Block - Dilated Conv
         self.conv3 = nn.Sequential(
-            # RF: 13x13 (due to dilation=2), jin=1, rin=1
-            nn.Conv2d(32, 48, kernel_size=3, padding=2, dilation=2),
+            # RF: 35x35, jin=4, rin=4, jout=4 (dilation=2 doubles effective kernel)
+            nn.Conv2d(32, 48, kernel_size=3, padding=2, dilation=2),  # 8x8x32 -> 8x8x48
             nn.BatchNorm2d(48),
             nn.ReLU(),
             
-            # RF: 15x15, jin=1, rin=1
-            nn.Conv2d(48, 64, kernel_size=3, padding=1),
+            # RF: 43x43, jin=4, rin=4, jout=4
+            nn.Conv2d(48, 64, kernel_size=3, padding=1),    # 8x8x48 -> 8x8x64
             nn.BatchNorm2d(64),
             nn.ReLU()
         )
         
-        # C4 Block - Strided Conv (C40)
+        # Strided conv after C3
+        self.stride3 = nn.Sequential(
+            # RF: 51x51, jin=4, rin=4, jout=8 (stride=2)
+            nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1),  # 8x8x64 -> 4x4x64
+            nn.BatchNorm2d(64),
+            nn.ReLU()
+        )
+        
+        # C4 Block - Final Conv
         self.conv4 = nn.Sequential(
-            # RF: 17x17, jin=2, rin=1
-            nn.Conv2d(64, 96, kernel_size=3, padding=1, stride=2),
-            nn.BatchNorm2d(96),
-            nn.ReLU(),
-            
-            # RF: 47x47, jin=2, rin=2
-            nn.Conv2d(96, 96, kernel_size=3, padding=1),
+            # RF: 67x67, jin=8, rin=8, jout=8
+            nn.Conv2d(64, 96, kernel_size=3, padding=1),    # 4x4x64 -> 4x4x96
             nn.BatchNorm2d(96),
             nn.ReLU()
         )
         
         # Global Average Pooling and Final Layer
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(96, 10)
+        self.gap = nn.AdaptiveAvgPool2d(1)                  # 4x4x96 -> 1x1x96
+        self.fc = nn.Linear(96, 10)                         # 96 -> 10
 
-    def forward(self, x):
-        x = self.conv1(x)  # 32x32 -> 32x32
-        x = self.conv2(x)  # 32x32 -> 32x32
-        x = self.conv3(x)  # 32x32 -> 32x32
-        x = self.conv4(x)  # 32x32 -> 16x16 (due to stride=2)
-        x = self.gap(x)    # 16x16 -> 1x1
-        x = x.view(-1, 96)
-        x = self.fc(x)
-        return x 
+    def forward(self, x):                                   # Input: Nx3x32x32
+        x = self.conv1(x)      # 32x32x3 -> 32x32x16
+        x = self.stride1(x)    # 32x32x16 -> 16x16x16
+        x = self.conv2(x)      # 16x16x16 -> 16x16x32
+        x = self.stride2(x)    # 16x16x32 -> 8x8x32
+        x = self.conv3(x)      # 8x8x32 -> 8x8x64
+        x = self.stride3(x)    # 8x8x64 -> 4x4x64
+        x = self.conv4(x)      # 4x4x64 -> 4x4x96
+        x = self.gap(x)        # 4x4x96 -> 1x1x96
+        x = x.view(-1, 96)     # 1x1x96 -> 96
+        x = self.fc(x)         # 96 -> 10
+        return x               # Output: Nx10
