@@ -10,11 +10,11 @@ class Trainer:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
         
-        total_steps = 40 * 391  # 40 epochs * steps_per_epoch
+        total_steps = 60 * 391  # 60 epochs * steps_per_epoch
         self.scheduler = optim.lr_scheduler.OneCycleLR(
             self.optimizer,
             max_lr=0.01,
-            epochs=40,  # Increased epochs
+            epochs=60,  # Increased epochs
             steps_per_epoch=391,
             pct_start=0.3,  # Modified warm-up period
             div_factor=10,

@@ -28,17 +28,21 @@ def main():
     
     # Training loop
     best_acc = 0
-    for epoch in range(40):
+    for epoch in range(60):
         print(f"\nEpoch: {epoch}")
         train_acc = trainer.train(train_loader)
         test_acc = trainer.test(test_loader)
         
         if test_acc > best_acc:
             best_acc = test_acc
-            # Save best model
             torch.save(model.state_dict(), 'best_model.pth')
             
         print(f"Best accuracy so far: {best_acc:.2f}%")
+        
+        # Early stopping if target reached
+        if test_acc >= 85.0:
+            print(f"Target accuracy of 85% reached at epoch {epoch}")
+            break
 
 if __name__ == "__main__":
     main() 
