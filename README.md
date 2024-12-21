@@ -74,10 +74,64 @@ Uses Albumentations library with:
 
 ## Model Parameters
 
+### CIFAR10Net (Dilated Architecture)
 - Input Size: 32x32x3
 - Channel Progression: 3 → 12 → 16 → 24 → 32 → 48 → 64 → 96
-- Total Parameters: ~191K
-- Final Receptive Field: 47x47
+- Spatial Dimensions: Maintained at 32x32
+- Final RF: 135x135
+
+Parameter Count:
+1. C1 Block: 
+   - Conv1: (3×12×3×3) + 12 = 336
+   - BN1: 24
+   - Conv2: (12×16×3×3) + 16 = 1,744
+   - BN2: 32
+
+2. Dilated1 (dilation=2):
+   - Conv: (16×16×3×3) + 16 = 2,320
+   - BN: 32
+
+3. C2 Block:
+   - DepthwiseSep: (16×1×3×3) + 16 + (16×24×1×1) + 24 = 568
+   - BN: 48
+   - Conv: (24×32×3×3) + 32 = 6,944
+   - BN: 64
+
+4. Dilated2 (dilation=4):
+   - Conv: (32×32×3×3) + 32 = 9,248
+   - BN: 64
+
+5. C3 Block:
+   - Conv1: (32×48×3×3) + 48 = 13,872
+   - BN1: 96
+   - Conv2: (48×64×3×3) + 64 = 27,712
+   - BN2: 128
+
+6. Dilated3 (dilation=16):
+   - Conv: (64×64×3×3) + 64 = 36,928
+   - BN: 128
+
+7. C4 Block:
+   - Conv: (64×96×3×3) + 96 = 55,392
+
+8. FC Layer:
+   - Linear: 96×10 + 10 = 970
+
+Total Parameters: ~156,640
+
+### CIFAR10StridedNet
+- Input Size: 32x32x3
+- Channel Progression: Same as above
+- Spatial Reduction: 32→16→8→4
+- Final RF: 67x67
+
+Parameter Count: Same as above but with strided convolutions instead of dilated
+
+Key Differences:
+- Dilated version maintains spatial dimensions longer
+- Strided version has progressive spatial reduction
+- Both maintain similar parameter count
+- Different effective receptive fields
 
 ## Training
 
