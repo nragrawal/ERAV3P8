@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+import logging
+import os
 
 class Trainer:
     def __init__(self, model, device):
@@ -10,17 +12,26 @@ class Trainer:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
         
-        total_steps = 30 * 391  # 40 epochs * steps_per_epoch
+        total_steps = 40 * 391  # 40 epochs * steps_per_epoch
         self.scheduler = optim.lr_scheduler.OneCycleLR(
             self.optimizer,
             max_lr=0.01,
-            epochs=30,  # Increased epochs
+            epochs=40,  # Increased epochs
             steps_per_epoch=391,
             pct_start=0.3,  # Modified warm-up period
             div_factor=10,
             final_div_factor=100,
             anneal_strategy='cos'  # Added cosine annealing
         )
+        
+        # Setup logging
+        logging.basicConfig(
+            filename='train.log',
+            level=logging.INFO,
+            format='%(asctime)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        self.logger = logging.getLogger(__name__)
 
     def train(self, train_loader):
         self.model.train()
@@ -47,7 +58,9 @@ class Trainer:
                 desc=f'Loss={loss.item():0.4f} Batch_id={batch_idx} Accuracy={100*correct/processed:0.2f}'
             )
         
-        return 100*correct/processed
+        train_acc = 100*correct/processed
+        self.logger.info(f'Train Accuracy: {train_acc:.2f}%')
+        return train_acc
 
     def test(self, test_loader):
         self.model.eval()
@@ -65,5 +78,5 @@ class Trainer:
         test_loss /= len(test_loader.dataset)
         accuracy = 100. * correct / len(test_loader.dataset)
         
-        print(f'Test set: Average loss: {test_loss:.4f}, Accuracy: {accuracy:.2f}%')
+        self.logger.info(f'Test Loss: {test_loss:.4f}, Accuracy: {accuracy:.2f}%')
         return accuracy 

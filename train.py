@@ -28,7 +28,7 @@ def main():
     
     # Training loop
     best_acc = 0
-    for epoch in range(30):
+    for epoch in range(40):
         print(f"\nEpoch: {epoch}")
         train_acc = trainer.train(train_loader)
         test_acc = trainer.test(test_loader)

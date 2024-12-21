@@ -1,25 +1,38 @@
-# CIFAR10 Image Classification with Custom CNN
+# CIFAR10 Classification with Custom CNNs
 
-This project implements a custom CNN architecture for CIFAR10 image classification with specific architectural constraints and requirements.
+This project implements two custom CNN architectures for CIFAR10 image classification with specific architectural constraints and requirements.
 
-## Architecture Details
+## Architectures
 
-The network follows a C1C2C3C40 architecture pattern with the following specifications:
+### 1. CIFAR10Net (Dilated Architecture)
+Uses dilated convolutions for increasing receptive field while maintaining spatial dimensions.
 
-1. No MaxPooling (uses strided convolutions instead)
-2. Total Receptive Field > 44
-3. Uses Depthwise Separable Convolution
-4. Uses Dilated Convolution
-5. Uses Global Average Pooling
-6. Parameters < 200K
+- **Input**: 32x32x3
+- **Channel Progression**: 3 → 12 → 16 → 24 → 32 → 48 → 64 → 96
+- **Spatial Dimensions**: Maintained at 32x32 until GAP
+- **Final RF**: 135x135
 
-### Layer Structure
-- C1: Regular Convolutions
-- C2: Includes Depthwise Separable Convolution
-- C3: Includes Dilated Convolution
-- C40: Strided Convolution (stride=2)
+Key Features:
+- Progressive dilation rates (2→4→8→16→32)
+- No spatial reduction until GAP
+- Depthwise Separable Convolution in C2
+- Multiple dilated convolutions
 
-## Requirements 
+### 2. CIFAR10StridedNet (Strided Architecture)
+Uses strided convolutions for spatial reduction.
+
+- **Input**: 32x32x3
+- **Channel Progression**: Same as above
+- **Spatial Reduction**: 32→16→8→4→1
+- **Final RF**: 67x67
+
+Key Features:
+- Strided convolutions for downsampling
+- Depthwise Separable Convolution in C2
+- Dilated Convolution in C3
+- Progressive spatial reduction
+
+## Requirements
 
 bash
 torch
@@ -32,25 +45,17 @@ torchsummary
 ## Project Structure
 ├── models/
 │ ├── init.py
-│ └── network.py # Network architecture
+│ └── network.py # Network architectures
 ├── utils/
 │ ├── init.py
 │ ├── data_loader.py # Data loading and augmentation
 │ └── trainer.py # Training utilities
-└── train.py # Main training script
+├── train.py # Main training script
+├── train.log # Training logs
+└── README.md
+
 bash
 python train.py
- 
-This README.md:
-Explains the project architecture
-Lists requirements
-Shows project structure
-Details data augmentation
-5. Provides training instructions
-Shows model architecture details
-Includes parameter counts and channel progression
-Provides clear instructions for running the code
-Would you like me to add or modify any section?
 
 
 ## Data Augmentation
@@ -81,43 +86,29 @@ To train the model:
 bash
 python train.py
 
-
-The training process includes:
-- 40 epochs
-- Batch size of 128
-- OneCycleLR scheduler
-- Adam optimizer with weight decay
-- Model checkpointing (saves best model)
-
 ## Results
 
-The model is designed to achieve:
-- Target Accuracy: 85%
-- Training Time: ~40 epochs
-- Parameter Efficiency: <200K parameters
+Target metrics:
+- Accuracy: 89%
+- Training time: ~40 epochs
+- Parameter efficiency: <150K parameters
+- 85% in 20 epochs can be achieved as well.
+## Implementation Details
 
-## Model Architecture Details
+### Key Components:
+1. **DepthwiseSeparableConv**:
+   - Separates spatial and channel-wise convolutions
+   - Reduces parameters while maintaining performance
 
-1. **C1 Block (Regular Conv)**
-   - Conv 3x3 (3→12)
-   - Conv 3x3 (12→16)
+2. **Dilated Convolutions**:
+   - Increases receptive field without parameter increase
+   - Maintains spatial dimensions
 
-2. **C2 Block (with Depthwise Separable)**
-   - Depthwise Separable Conv (16→24)
-   - Conv 3x3 (24→32)
+3. **Transition Blocks**:
+   - In StridedNet: Uses strided convolutions
+   - In DilatedNet: Uses dilated convolutions
 
-3. **C3 Block (with Dilation)**
-   - Dilated Conv 3x3 (32→48, dilation=2)
-   - Conv 3x3 (48→64)
+4. **Global Average Pooling**:
+   - Replaces fully connected layers
+   - Reduces parameters significantly
 
-4. **C4 Block (Strided)**
-   - Strided Conv 3x3 (64→96, stride=2)
-   - Conv 3x3 (96→96)
-
-5. **Output**
-   - Global Average Pooling
-   - FC Layer (96→10)
-
-## License
-
-MIT
